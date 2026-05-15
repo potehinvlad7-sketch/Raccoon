@@ -38,8 +38,15 @@ def _write_json(path: Path, data) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+def _normalize_card(card: dict) -> dict:
+    c=dict(card)
+    c["triggers"]=normalize_triggers(c.get("triggers", []))
+    c["media_type"]=c.get("media_type","photo")
+    if c["media_type"] not in {"photo","document"}: c["media_type"]="photo"
+    return c
+
 def get_cards() -> list[dict]:
-    return _read_json(CARDS_PATH, [])
+    return [_normalize_card(c) for c in _read_json(CARDS_PATH, [])]
 
 
 def save_cards(cards: list[dict]) -> None:
@@ -143,3 +150,10 @@ def upsert_user_profile(user, found_card_id: int | None = None) -> dict:
 def get_user_profile(user_id: int) -> dict | None:
     users = _read_json(USERS_PATH, {})
     return users.get(str(user_id))
+
+
+def get_users() -> dict:
+    return _read_json(USERS_PATH, {})
+
+def get_stats() -> dict:
+    return _read_json(STATS_PATH, {"card_hits": {}, "trigger_hits": {}, "users": {}})

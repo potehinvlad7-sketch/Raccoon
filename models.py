@@ -20,6 +20,7 @@ class Card:
     created_at: str
     updated_at: str
     uploaded_by: int
+    media_type: str
 
     @classmethod
     def create(
@@ -33,6 +34,7 @@ class Card:
         category: str,
         triggers: list[str],
         uploaded_by: int,
+        media_type: str = "photo",
     ) -> "Card":
         now = datetime.now(timezone.utc).isoformat()
         return cls(
@@ -48,6 +50,7 @@ class Card:
             created_at=now,
             updated_at=now,
             uploaded_by=uploaded_by,
+            media_type=media_type if media_type in {"photo", "document"} else "photo",
         )
 
     def to_dict(self) -> dict:
@@ -55,7 +58,7 @@ class Card:
 
 
 def normalize_trigger(value: str) -> str:
-    return " ".join(value.strip().lower().split())
+    return " ".join(value.strip().lower().replace("ё", "е").split())
 
 
 def normalize_triggers(values: list[str]) -> list[str]:
