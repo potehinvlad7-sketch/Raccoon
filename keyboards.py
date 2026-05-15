@@ -26,3 +26,15 @@ def card_settings_keyboard(card_id: int) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="Назад", callback_data=f"gallery:show:{card_id}")],
         ]
     )
+
+
+def user_gallery_nav_keyboard(card_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⬅️ Предыдущая", callback_data=f"mygallery:prev:{card_id}"),
+                InlineKeyboardButton(text="Далее ▶️", callback_data=f"mygallery:next:{card_id}"),
+            ],
+            [InlineKeyboardButton(text="← Назад", callback_data="mygallery:back")],
+        ]
+    )
