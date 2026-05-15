@@ -88,3 +88,18 @@ sudo -u botuser -H bash -lc 'cd ~ && git clone <YOUR_GITHUB_URL> Raccoon && cd R
 sudo cp /home/botuser/Raccoon/systemd/raccoon-card-bot.service /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable raccoon-card-bot.service && sudo systemctl start raccoon-card-bot.service
 ```
+
+
+- /help — помощь
+
+## Новые команды Stage 2
+- `/help` — помощь для пользователей и админов.
+- `/mygallery` — личная галерея найденных карточек.
+- `/broadcast` — рассылка всем пользователям (только админ).
+- `/userstats` — статистика пользователей (только админ).
+- `/raccoonadmin` — админка Еноти.
+- `/galleryadmin` — админка Лиси.
+- `/addraccoon` — добавить карточку Еноти.
+- `/addfox` — добавить карточку Лиси.
+
+Карточки поддерживают `media_type`: `photo` и `document`.
