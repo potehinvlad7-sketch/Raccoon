@@ -35,6 +35,98 @@ async def addcard(message:Message,state:FSMContext,settings:Settings):
     if message.text.startswith('/addraccoon'): await state.update_data(force_category='Енотя',force_triggers=['енот','енотя','raccoon','raccoon girl','аэлита'])
     if message.text.startswith('/addfox'): await state.update_data(force_category='Лися',force_triggers=['лиса','лися','лисёнок','лисенок','fox','kitsune'])
     await message.answer('Отправьте картинку (photo или document-изображение).')
+
+@router.message(AddCardState.waiting_image)
+async def addcard_image(message: Message, state: FSMContext, settings: Settings):
+    if not _is_admin(message.from_user.id, settings): return
+    file_id=None; media_type=None; filename=None
+    if message.photo:
+        file_id = message.photo[-1].file_id
+        media_type = "photo"
+        filename = f"card_{message.photo[-1].file_unique_id}.jpg"
+    elif message.document and (message.document.mime_type or "").startswith("image/"):
+        file_id = message.document.file_id
+        media_type = "document"
+        filename = message.document.file_name or f"card_{message.document.file_unique_id}"
+    else:
+        return await message.answer("Поддерживаются только photo или document image. Отправьте картинку ещё раз.")
+
+    arts_dir = Path("arts")
+    arts_dir.mkdir(parents=True, exist_ok=True)
+    telegram_file = await message.bot.get_file(file_id)
+    local_path = arts_dir / filename
+    await message.bot.download_file(telegram_file.file_path, destination=local_path)
+
+    await state.update_data(file_id=file_id, media_type=media_type, local_path=str(local_path), filename=filename)
+    await state.set_state(AddCardState.waiting_caption)
+    await message.answer("Введите подпись карточки.")
+
+@router.message(AddCardState.waiting_caption)
+async def addcard_caption(message: Message, state: FSMContext, settings: Settings):
+    if not _is_admin(message.from_user.id, settings): return
+    caption = (message.text or "").strip()
+    if not caption:
+        return await message.answer("Подпись не должна быть пустой. Введите подпись карточки.")
+    await state.update_data(caption=caption)
+    await state.set_state(AddCardState.waiting_rarity)
+    await message.answer("Введите редкость: Common, Rare, Epic, Legendary или Mythic.")
+
+async def _finalize_card(message: Message, state: FSMContext, data: dict, category: str, triggers: list[str]):
+    cards = get_cards()
+    card = Card.create(
+        card_id=next_card_id(cards),
+        file_id=data["file_id"],
+        local_path=data["local_path"],
+        filename=data["filename"],
+        caption=data["caption"],
+        rarity=data["rarity"],
+        category=category,
+        triggers=triggers,
+        uploaded_by=message.from_user.id,
+        media_type=data.get("media_type", "photo"),
+    )
+    add_card(card)
+    await state.clear()
+    card_dict = card.to_dict()
+    preview = _card_text(card_dict, 1, 1)
+    if card.media_type == "document":
+        await message.answer_document(card.file_id, caption=f"Карточка добавлена.\n\n{preview}")
+    else:
+        await message.answer_photo(card.file_id, caption=f"Карточка добавлена.\n\n{preview}")
+
+@router.message(AddCardState.waiting_rarity)
+async def addcard_rarity(message: Message, state: FSMContext, settings: Settings):
+    if not _is_admin(message.from_user.id, settings): return
+    rarity = (message.text or "").strip()
+    if rarity not in RARITIES:
+        return await message.answer("Неверная редкость. Допустимые значения: Common, Rare, Epic, Legendary, Mythic.")
+    await state.update_data(rarity=rarity)
+    data = await state.get_data()
+    force_category = data.get("force_category")
+    force_triggers = data.get("force_triggers")
+    if force_category and force_triggers:
+        return await _finalize_card(message, state, data, force_category, normalize_triggers(force_triggers))
+    await state.set_state(AddCardState.waiting_category)
+    await message.answer("Введите категорию карточки.")
+
+@router.message(AddCardState.waiting_category)
+async def addcard_category(message: Message, state: FSMContext, settings: Settings):
+    if not _is_admin(message.from_user.id, settings): return
+    category = (message.text or "").strip()
+    if not category:
+        return await message.answer("Категория не должна быть пустой. Введите категорию карточки.")
+    await state.update_data(category=category)
+    await state.set_state(AddCardState.waiting_triggers)
+    await message.answer("Введите триггеры через запятую.")
+
+@router.message(AddCardState.waiting_triggers)
+async def addcard_triggers(message: Message, state: FSMContext, settings: Settings):
+    if not _is_admin(message.from_user.id, settings): return
+    triggers = normalize_triggers([part.strip() for part in (message.text or "").split(",")])
+    if not triggers:
+        return await message.answer("Нужен хотя бы один триггер. Введите триггеры через запятую.")
+    data = await state.get_data()
+    await _finalize_card(message, state, data, data["category"], triggers)
 @router.message(Command('cancel'))
 async def cancel(message:Message,state:FSMContext,settings:Settings):
     if _is_admin(message.from_user.id, settings): await state.clear(); await message.answer('Действие отменено.')
