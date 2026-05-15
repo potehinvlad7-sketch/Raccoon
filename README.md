@@ -103,3 +103,20 @@ sudo systemctl daemon-reload && sudo systemctl enable raccoon-card-bot.service &
 - `/addfox` — добавить карточку Лиси.
 
 Карточки поддерживают `media_type`: `photo` и `document`.
+
+## Обновления админки
+- `/raccoonadmin` доступна только главному админу `811133301`.
+- `/raccoonadmin` показывает топ пользователей (ID, username, имя, total_finds, уникальные карточки).
+- Добавлены команды: `/adminhelp`, `/backup`, `/export_users`, `/cardinfo ID`.
+- В админ-галерее работают кнопки: предыдущий, следующий, настройки, редактирование подписи/редкости/категории/триггеров, включить/выключить, удалить.
+
+## Безопасное обновление на сервере
+```bash
+cd ~/Raccoon
+git pull
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+sudo systemctl restart raccoon-card-bot.service
+sudo systemctl status raccoon-card-bot.service --no-pager -l
+sudo journalctl -u raccoon-card-bot.service -f
+```

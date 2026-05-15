@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aiogram import F, Router
+import logging
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InputMediaDocument, InputMediaPhoto
 from aiogram.types import Message
@@ -37,16 +38,24 @@ async def my_gallery(message: Message):
     cards_map = {c["id"]: c for c in get_cards()}
     found_cards = [cards_map[cid] for cid in found_ids if cid in cards_map]
     first = found_cards[0]; caption=_my_gallery_caption(first,1,len(found_cards))
-    if first.get("media_type","photo")=="document": await message.answer_document(document=first["file_id"],caption=caption,reply_markup=user_gallery_nav_keyboard(first["id"]))
-    else: await message.answer_photo(photo=first["file_id"],caption=caption,reply_markup=user_gallery_nav_keyboard(first["id"]))
+    try:
+        if first.get("media_type","photo")=="document": await message.answer_document(document=first["file_id"],caption=caption,reply_markup=user_gallery_nav_keyboard(first["id"]))
+        else: await message.answer_photo(photo=first["file_id"],caption=caption,reply_markup=user_gallery_nav_keyboard(first["id"]))
+    except Exception:
+        logging.exception('failed send mygallery card %s', first.get('id'))
+        await message.answer('Не удалось отправить карточку. Возможно, файл повреждён.')
 
 @router.message(F.text)
 async def trigger_card(message: Message):
     card = random_card_for_trigger(message.text or "")
     if not card: return
     caption=f"🎴 {card.get('category', 'Карточка')}-карточка\n\nРедкость: {card.get('rarity', '-')}\nКатегория: {card.get('category', '-')}\n\n{card.get('caption', '')}"
-    if card.get("media_type","photo")=="document": await message.answer_document(document=card["file_id"], caption=caption)
-    else: await message.answer_photo(photo=card["file_id"], caption=caption)
+    try:
+        if card.get("media_type","photo")=="document": await message.answer_document(document=card["file_id"], caption=caption)
+        else: await message.answer_photo(photo=card["file_id"], caption=caption)
+    except Exception:
+        logging.exception('failed send trigger card %s', card.get('id'))
+        return await message.answer(f'Не удалось отправить карточку #{card.get("id")}. Возможно, file_id устарел или повреждён.')
     update_stats(card_id=card["id"], trigger=message.text or "", user_id=message.from_user.id); upsert_user_profile(message.from_user, found_card_id=card["id"])
 
 @router.callback_query(F.data.startswith("mygallery:"))
