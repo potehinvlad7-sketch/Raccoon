@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from random import choice
+from datetime import datetime, timezone
 
 from models import Card, normalize_trigger, normalize_triggers
 
@@ -10,6 +11,7 @@ DATA_DIR = Path("data")
 CARDS_PATH = DATA_DIR / "cards.json"
 TRIGGERS_PATH = DATA_DIR / "triggers.json"
 STATS_PATH = DATA_DIR / "stats.json"
+USERS_PATH = DATA_DIR / "users.json"
 
 
 def ensure_storage() -> None:
@@ -18,6 +20,7 @@ def ensure_storage() -> None:
         (CARDS_PATH, []),
         (TRIGGERS_PATH, {}),
         (STATS_PATH, {"card_hits": {}, "trigger_hits": {}, "users": {}}),
+        (USERS_PATH, {}),
     ]:
         if not p.exists():
             p.write_text(json.dumps(default, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -108,3 +111,35 @@ def update_stats(card_id: int, trigger: str, user_id: int) -> None:
     stats["users"][uid] = stats["users"].get(uid, 0) + 1
 
     _write_json(STATS_PATH, stats)
+
+
+def upsert_user_profile(user, found_card_id: int | None = None) -> dict:
+    users = _read_json(USERS_PATH, {})
+    uid = str(user.id)
+    now = datetime.now(timezone.utc).isoformat()
+
+    profile = users.get(uid, {})
+    found_cards = profile.get("found_cards", [])
+    if found_card_id is not None and found_card_id not in found_cards:
+        found_cards.append(found_card_id)
+
+    total_finds = int(profile.get("total_finds", 0))
+    if found_card_id is not None:
+        total_finds += 1
+
+    users[uid] = {
+        "user_id": user.id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "found_cards": found_cards,
+        "total_finds": total_finds,
+        "first_seen": profile.get("first_seen") or now,
+        "last_seen": now,
+    }
+    _write_json(USERS_PATH, users)
+    return users[uid]
+
+
+def get_user_profile(user_id: int) -> dict | None:
+    users = _read_json(USERS_PATH, {})
+    return users.get(str(user_id))
