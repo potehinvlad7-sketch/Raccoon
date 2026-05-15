@@ -1,0 +1,14 @@
+[Unit]
+Description=Raccoon Card Gallery Bot
+After=network.target
+
+[Service]
+Type=simple
+User=botuser
+WorkingDirectory=/home/botuser/Raccoon
+ExecStart=/home/botuser/Raccoon/.venv/bin/python /home/botuser/Raccoon/main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
